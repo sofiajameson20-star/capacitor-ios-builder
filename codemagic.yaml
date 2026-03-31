@@ -26,6 +26,9 @@ workflows:
             "server": {
               "url": "$APP_URL",
               "cleartext": true
+            },
+            "ios": {
+              "minVersion": "14.0"
             }
           }
           EOF
@@ -35,10 +38,10 @@ workflows:
         script: |
           npx cap add ios
           cd ios/App
-          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*/IPHONEOS_DEPLOYMENT_TARGET = 14.0/g' App.xcodeproj/project.pbxproj
           sed -i '' "s/platform :ios, '[0-9.]*'/platform :ios, '14.0'/" Podfile
+          cat Podfile | grep platform
+          pod install --repo-update
           cd ../..
-          npx cap sync ios
       - name: Build IPA
         script: |
           xcodebuild -workspace ios/App/App.xcworkspace \
