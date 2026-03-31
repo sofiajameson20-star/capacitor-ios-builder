@@ -15,7 +15,7 @@ workflows:
       - name: Install Capacitor
         script: |
           npm init -y
-          npm install @capacitor/core @capacitor/ios @capacitor/cli
+          npm install @capacitor/core@5.7.0 @capacitor/ios@5.7.0 @capacitor/cli@5.7.0
       - name: Create Capacitor config
         script: |
           cat > capacitor.config.json << EOF
@@ -26,9 +26,6 @@ workflows:
             "server": {
               "url": "$APP_URL",
               "cleartext": true
-            },
-            "ios": {
-              "minVersion": "14.0"
             }
           }
           EOF
@@ -36,14 +33,8 @@ workflows:
           echo "<html><body><h1>$APP_NAME</h1></body></html>" > www/index.html
       - name: Add iOS platform
         script: |
-          CAPACITOR_SKIP_PODS=1 npx cap add ios || true
-      - name: Fix Podfile and install pods
-        script: |
-          cd ios/App
-          printf "require_relative '../../node_modules/@capacitor/ios/scripts/pods_helpers'\nplatform :ios, '14.0'\nuse_frameworks!\ninstall! 'cocoapods', :disable_input_output_paths => true\ndef capacitor_pods\n  pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'\n  pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'\nend\ntarget 'App' do\n  capacitor_pods\nend\npost_install do |installer|\n  installer.pods_project.targets.each do |target|\n    target.build_configurations.each do |config|\n      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'\n    end\n  end\nend\n" > Podfile
-          pod install --repo-update
-          cp Podfile.lock /Podfile.lock
-          cd ../..
+          npx cap add ios
+          npx cap sync ios
       - name: Create ExportOptions
         script: |
           cat > ios/App/ExportOptions.plist << EOF
@@ -68,7 +59,6 @@ workflows:
             -configuration Release \
             -archivePath App.xcarchive \
             CODE_SIGNING_ALLOWED=NO \
-            SKIP_INSTALL=NO \
             archive
           xcodebuild -exportArchive \
             -archivePath App.xcarchive \
