@@ -42,8 +42,6 @@ workflows:
           cd ios/App
           printf "require_relative '../../node_modules/@capacitor/ios/scripts/pods_helpers'\nplatform :ios, '14.0'\nuse_frameworks!\ninstall! 'cocoapods', :disable_input_output_paths => true\ndef capacitor_pods\n  pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'\n  pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'\nend\ntarget 'App' do\n  capacitor_pods\nend\npost_install do |installer|\n  installer.pods_project.targets.each do |target|\n    target.build_configurations.each do |config|\n      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'\n    end\n  end\nend\n" > Podfile
           pod install --repo-update
-          echo "=== Verifying Pods xcconfig exists ==="
-          ls "Pods/Target Support Files/Pods-App/"
           cd ../..
       - name: Remove stale xcconfig references
         script: |
@@ -68,6 +66,7 @@ workflows:
       - name: Build IPA
         script: |
           cd ios/App
+          cp Podfile.lock /Podfile.lock 2>/dev/null || true
           SCHEME=$(xcodebuild -project App.xcodeproj -list | grep -A 10 "Schemes:" | grep -v "Schemes:" | head -1 | xargs)
           echo "Building scheme: $SCHEME"
           xcodebuild -project App.xcodeproj \
