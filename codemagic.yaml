@@ -9,6 +9,7 @@ workflows:
         BUNDLE_ID: $BUNDLE_ID
         VERSION_NAME: $VERSION_NAME
         VERSION_CODE: $VERSION_CODE
+        APPLE_TEAM_ID: $APPLE_TEAM_ID
       xcode: latest
       node: 20
     scripts:
@@ -40,8 +41,6 @@ workflows:
           mkdir -p ios/App/App.xcworkspace/xcshareddata/xcschemes
           SCHEME_FILE=$(ls ios/App/App.xcodeproj/xcshareddata/xcschemes/ | head -1)
           cp "ios/App/App.xcodeproj/xcshareddata/xcschemes/$SCHEME_FILE" "ios/App/App.xcworkspace/xcshareddata/xcschemes/$SCHEME_FILE"
-          echo "Copied scheme: $SCHEME_FILE"
-          xcodebuild -workspace ios/App/App.xcworkspace -list
       - name: Create ExportOptions
         script: |
           cat > ios/App/ExportOptions.plist << EOF
@@ -50,9 +49,9 @@ workflows:
           <plist version="1.0">
           <dict>
               <key>method</key>
-              <string>development</string>
-              <key>compileBitcode</key>
-              <false/>
+              <string>app-store-connect</string>
+              <key>teamID</key>
+              <string>$APPLE_TEAM_ID</string>
           </dict>
           </plist>
           EOF
@@ -65,11 +64,17 @@ workflows:
             -scheme "$SCHEME" \
             -configuration Release \
             -archivePath App.xcarchive \
-            CODE_SIGNING_ALLOWED=NO \
             archive
           xcodebuild -exportArchive \
             -archivePath App.xcarchive \
             -exportOptionsPlist ExportOptions.plist \
             -exportPath output
+    publishing:
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_API_KEY
+        key_id: $APP_STORE_CONNECT_KEY_ID
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true
+        submit_to_app_store: false
     artifacts:
       - ios/App/output/*.ipa
