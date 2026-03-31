@@ -38,11 +38,26 @@ workflows:
         script: |
           npx cap add ios
           cd ios/App
-          echo "=== Podfile before sed ==="
-          cat Podfile
-          sed -i '' "s/platform :ios, '[0-9.]*'/platform :ios, '14.0'/" Podfile
-          echo "=== Podfile after sed ==="
-          cat Podfile
+          cat > Podfile << 'PODEOF'
+          require_relative '../../node_modules/@capacitor/ios/scripts/pods_helpers'
+          platform :ios, '14.0'
+          use_frameworks!
+          install! 'cocoapods', :disable_input_output_paths => true
+          def capacitor_pods
+            pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
+            pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
+          end
+          target 'App' do
+            capacitor_pods
+          end
+          post_install do |installer|
+            installer.pods_project.targets.each do |target|
+              target.build_configurations.each do |config|
+                config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+              end
+            end
+          end
+          PODEOF
           pod install --repo-update
           cd ../..
       - name: Create ExportOptions
