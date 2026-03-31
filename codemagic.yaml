@@ -41,15 +41,13 @@ workflows:
           sed -i '' "s/platform :ios, '[0-9.]*'/platform :ios, '14.0'/" Podfile
           pod install --repo-update
           cd ../..
-      - name: Debug project structure
+      - name: Fix scheme for workspace
         script: |
-          echo "=== xcodeproj schemes ==="
-          ls ios/App/App.xcodeproj/xcshareddata/xcschemes/ 2>/dev/null || echo "No shared schemes"
-          ls ios/App/App.xcodeproj/ 2>/dev/null
-          echo "=== workspace schemes ==="
-          ls ios/App/App.xcworkspace/ 2>/dev/null
-          echo "=== list project ==="
-          xcodebuild -project ios/App/App.xcodeproj -list
+          SCHEME=$(xcodebuild -project ios/App/App.xcodeproj -list | grep -A 10 "Schemes:" | grep -v "Schemes:" | head -1 | xargs)
+          echo "Found scheme: $SCHEME"
+          mkdir -p ios/App/App.xcworkspace/xcshareddata/xcschemes
+          cp ios/App/App.xcodeproj/xcshareddata/xcschemes/*.xcscheme ios/App/App.xcworkspace/xcshareddata/xcschemes/ 2>/dev/null || true
+          xcodebuild -workspace ios/App/App.xcworkspace -list
       - name: Create ExportOptions
         script: |
           cat > ios/App/ExportOptions.plist << EOF
@@ -68,7 +66,7 @@ workflows:
         script: |
           SCHEME=$(xcodebuild -project ios/App/App.xcodeproj -list | grep -A 10 "Schemes:" | grep -v "Schemes:" | head -1 | xargs)
           echo "Building scheme: $SCHEME"
-          xcodebuild -project ios/App/App.xcodeproj \
+          xcodebuild -workspace ios/App/App.xcworkspace \
             -scheme "$SCHEME" \
             -configuration Release \
             -archivePath ios/App/App.xcarchive \
