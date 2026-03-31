@@ -36,6 +36,7 @@ workflows:
           npx cap add ios
           cd ios/App
           sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*/IPHONEOS_DEPLOYMENT_TARGET = 14.0/g' App.xcodeproj/project.pbxproj
+          sed -i '' "s/platform :ios, '[0-9.]*'/platform :ios, '14.0'/" Podfile
           cd ../..
           npx cap sync ios
       - name: Build IPA
