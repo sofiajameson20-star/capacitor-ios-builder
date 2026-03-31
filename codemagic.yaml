@@ -38,10 +38,12 @@ workflows:
         script: |
           npx cap add ios
           cd ios/App
+          echo "=== Podfile before sed ==="
+          cat Podfile
           sed -i '' "s/platform :ios, '[0-9.]*'/platform :ios, '14.0'/" Podfile
+          echo "=== Podfile after sed ==="
+          cat Podfile
           pod install --repo-update
-          echo "Pods installed, listing support files:"
-          ls Pods/Target\ Support\ Files/Pods-App/
           cd ../..
       - name: Create ExportOptions
         script: |
