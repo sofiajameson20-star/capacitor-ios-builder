@@ -36,7 +36,7 @@ workflows:
           echo "<html><body><h1>$APP_NAME</h1></body></html>" > www/index.html
       - name: Add iOS platform
         script: |
-          npx cap add ios --nopods
+          CAPACITOR_SKIP_PODS=1 npx cap add ios || true
       - name: Fix Podfile and install pods
         script: |
           cd ios/App
