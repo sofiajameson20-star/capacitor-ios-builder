@@ -34,20 +34,15 @@ workflows:
           EOF
           mkdir -p www
           echo "<html><body><h1>$APP_NAME</h1></body></html>" > www/index.html
-      - name: Add iOS platform
+      - name: Add iOS platform and install pods
         script: |
           npx cap add ios
           cd ios/App
           sed -i '' "s/platform :ios, '[0-9.]*'/platform :ios, '14.0'/" Podfile
           pod install --repo-update
+          echo "Pods installed, listing support files:"
+          ls Pods/Target\ Support\ Files/Pods-App/
           cd ../..
-      - name: Fix scheme for workspace
-        script: |
-          SCHEME=$(xcodebuild -project ios/App/App.xcodeproj -list | grep -A 10 "Schemes:" | grep -v "Schemes:" | head -1 | xargs)
-          echo "Found scheme: $SCHEME"
-          mkdir -p ios/App/App.xcworkspace/xcshareddata/xcschemes
-          cp ios/App/App.xcodeproj/xcshareddata/xcschemes/*.xcscheme ios/App/App.xcworkspace/xcshareddata/xcschemes/ 2>/dev/null || true
-          xcodebuild -workspace ios/App/App.xcworkspace -list
       - name: Create ExportOptions
         script: |
           cat > ios/App/ExportOptions.plist << EOF
@@ -64,17 +59,19 @@ workflows:
           EOF
       - name: Build IPA
         script: |
-          SCHEME=$(xcodebuild -project ios/App/App.xcodeproj -list | grep -A 10 "Schemes:" | grep -v "Schemes:" | head -1 | xargs)
+          cd ios/App
+          SCHEME=$(xcodebuild -project App.xcodeproj -list | grep -A 10 "Schemes:" | grep -v "Schemes:" | head -1 | xargs)
           echo "Building scheme: $SCHEME"
-          xcodebuild -workspace ios/App/App.xcworkspace \
+          xcodebuild -project App.xcodeproj \
             -scheme "$SCHEME" \
             -configuration Release \
-            -archivePath ios/App/App.xcarchive \
+            -archivePath App.xcarchive \
+            PODS_ROOT="$(pwd)/Pods" \
             CODE_SIGNING_ALLOWED=NO \
             archive
           xcodebuild -exportArchive \
-            -archivePath ios/App/App.xcarchive \
-            -exportOptionsPlist ios/App/ExportOptions.plist \
-            -exportPath ios/App/output
+            -archivePath App.xcarchive \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath output
     artifacts:
       - ios/App/output/*.ipa
