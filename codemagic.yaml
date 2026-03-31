@@ -1,0 +1,50 @@
+workflows:
+  ios-workflow:
+    name: iOS Workflow
+    max_build_duration: 60
+    environment:
+      vars:
+        APP_URL: $APP_URL
+        APP_NAME: $APP_NAME
+        BUNDLE_ID: $BUNDLE_ID
+        VERSION_NAME: $VERSION_NAME
+        VERSION_CODE: $VERSION_CODE
+      xcode: latest
+      node: 20
+    scripts:
+      - name: Install Capacitor
+        script: |
+          npm init -y
+          npm install @capacitor/core @capacitor/ios @capacitor/cli
+      - name: Create Capacitor config
+        script: |
+          cat > capacitor.config.json << EOF
+          {
+            "appId": "$BUNDLE_ID",
+            "appName": "$APP_NAME",
+            "webDir": "www",
+            "server": {
+              "url": "$APP_URL",
+              "cleartext": true
+            }
+          }
+          EOF
+          mkdir -p www
+          echo "<html><body><h1>$APP_NAME</h1></body></html>" > www/index.html
+      - name: Add iOS platform
+        script: |
+          npx cap add ios
+          npx cap sync ios
+      - name: Build IPA
+        script: |
+          xcodebuild -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -archivePath ios/App/App.xcarchive \
+            archive
+          xcodebuild -exportArchive \
+            -archivePath ios/App/App.xcarchive \
+            -exportOptionsPlist ios/App/ExportOptions.plist \
+            -exportPath ios/App/output
+    artifacts:
+      - ios/App/output/*.ipa
