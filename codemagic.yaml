@@ -41,9 +41,37 @@ workflows:
           sed -i '' "s/platform :ios, '[0-9.]*'/platform :ios, '14.0'/" Podfile
           pod install --repo-update
           cd ../..
-      - name: List schemes
+      - name: Generate Xcode schemes
         script: |
-          xcodebuild -workspace ios/App/App.xcworkspace -list
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace -list 2>/dev/null || true
+          xcodebuild -project App.xcodeproj -scheme App -allowProvisioningUpdates 2>/dev/null || true
+          open -a Xcode App.xcworkspace 2>/dev/null || true
+          xcodebuild -workspace App.xcworkspace \
+            -scheme App \
+            -destination generic/platform=iOS \
+            CODE_SIGNING_ALLOWED=NO \
+            -showBuildSettings 2>/dev/null || true
+          ls -la App.xcodeproj/xcshareddata/xcschemes/ 2>/dev/null || echo "No schemes directory"
+          cd ../..
+      - name: Create scheme manually
+        script: |
+          mkdir -p ios/App/App.xcodeproj/xcshareddata/xcschemes
+          cat > ios/App/App.xcodeproj/xcshareddata/xcschemes/App.xcscheme << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <Scheme LastUpgradeVersion="1300" version="1.3">
+            <BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES">
+              <BuildActionEntries>
+                <BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES">
+                  <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="1F1A982E26350A4200B9A866" BuildableName="App.app" BlueprintName="App" ReferencedContainer="container:App.xcodeproj">
+                  </BuildableReference>
+                </BuildActionEntry>
+              </BuildActionEntries>
+            </BuildAction>
+            <ArchiveAction buildConfiguration="Release" revealArchiveInOrganizer="YES">
+            </ArchiveAction>
+          </Scheme>
+          EOF
       - name: Create ExportOptions
         script: |
           cat > ios/App/ExportOptions.plist << EOF
@@ -60,10 +88,9 @@ workflows:
           EOF
       - name: Build IPA
         script: |
-          SCHEME=$(xcodebuild -workspace ios/App/App.xcworkspace -list | grep -A 10 "Schemes:" | grep -v "Schemes:" | head -1 | xargs)
-          echo "Building scheme: $SCHEME"
+          xcodebuild -workspace ios/App/App.xcworkspace -list
           xcodebuild -workspace ios/App/App.xcworkspace \
-            -scheme "$SCHEME" \
+            -scheme App \
             -configuration Release \
             -archivePath ios/App/App.xcarchive \
             CODE_SIGNING_ALLOWED=NO \
