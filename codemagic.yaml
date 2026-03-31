@@ -41,8 +41,15 @@ workflows:
         script: |
           cd ios/App
           printf "require_relative '../../node_modules/@capacitor/ios/scripts/pods_helpers'\nplatform :ios, '14.0'\nuse_frameworks!\ninstall! 'cocoapods', :disable_input_output_paths => true\ndef capacitor_pods\n  pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'\n  pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'\nend\ntarget 'App' do\n  capacitor_pods\nend\npost_install do |installer|\n  installer.pods_project.targets.each do |target|\n    target.build_configurations.each do |config|\n      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'\n    end\n  end\nend\n" > Podfile
-          cat Podfile
           pod install --repo-update
+          echo "=== Verifying Pods xcconfig exists ==="
+          ls "Pods/Target Support Files/Pods-App/"
+          cd ../..
+      - name: Remove stale xcconfig references
+        script: |
+          cd ios/App
+          sed -i '' '/Pods-App.debug.xcconfig/d' App.xcodeproj/project.pbxproj
+          sed -i '' '/Pods-App.release.xcconfig/d' App.xcodeproj/project.pbxproj
           cd ../..
       - name: Create ExportOptions
         script: |
@@ -67,7 +74,6 @@ workflows:
             -scheme "$SCHEME" \
             -configuration Release \
             -archivePath App.xcarchive \
-            PODS_ROOT="$(pwd)/Pods" \
             CODE_SIGNING_ALLOWED=NO \
             archive
           xcodebuild -exportArchive \
