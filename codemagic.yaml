@@ -39,15 +39,34 @@ workflows:
           npx cap add ios
           cd ios/App
           sed -i '' "s/platform :ios, '[0-9.]*'/platform :ios, '14.0'/" Podfile
-          cat Podfile | grep platform
           pod install --repo-update
           cd ../..
+      - name: List schemes
+        script: |
+          xcodebuild -workspace ios/App/App.xcworkspace -list
+      - name: Create ExportOptions
+        script: |
+          cat > ios/App/ExportOptions.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>development</string>
+              <key>compileBitcode</key>
+              <false/>
+          </dict>
+          </plist>
+          EOF
       - name: Build IPA
         script: |
+          SCHEME=$(xcodebuild -workspace ios/App/App.xcworkspace -list | grep -A 10 "Schemes:" | grep -v "Schemes:" | head -1 | xargs)
+          echo "Building scheme: $SCHEME"
           xcodebuild -workspace ios/App/App.xcworkspace \
-            -scheme App \
+            -scheme "$SCHEME" \
             -configuration Release \
             -archivePath ios/App/App.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
             archive
           xcodebuild -exportArchive \
             -archivePath ios/App/App.xcarchive \
