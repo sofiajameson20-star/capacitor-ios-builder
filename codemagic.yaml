@@ -35,6 +35,13 @@ workflows:
         script: |
           npx cap add ios
           npx cap sync ios
+      - name: Fix scheme for workspace
+        script: |
+          mkdir -p ios/App/App.xcworkspace/xcshareddata/xcschemes
+          SCHEME_FILE=$(ls ios/App/App.xcodeproj/xcshareddata/xcschemes/ | head -1)
+          cp "ios/App/App.xcodeproj/xcshareddata/xcschemes/$SCHEME_FILE" "ios/App/App.xcworkspace/xcshareddata/xcschemes/$SCHEME_FILE"
+          echo "Copied scheme: $SCHEME_FILE"
+          xcodebuild -workspace ios/App/App.xcworkspace -list
       - name: Create ExportOptions
         script: |
           cat > ios/App/ExportOptions.plist << EOF
@@ -54,7 +61,7 @@ workflows:
           cd ios/App
           SCHEME=$(xcodebuild -project App.xcodeproj -list | grep -A 10 "Schemes:" | grep -v "Schemes:" | head -1 | xargs)
           echo "Building scheme: $SCHEME"
-          xcodebuild -project App.xcodeproj \
+          xcodebuild -workspace App.xcworkspace \
             -scheme "$SCHEME" \
             -configuration Release \
             -archivePath App.xcarchive \
