@@ -53,7 +53,8 @@ workflows:
             --certificate-key @file:/tmp/certificate_key.pem \
             --private-key @file:/tmp/api_key.p8 \
             --key-id "$APP_STORE_CONNECT_KEY_ID" \
-            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID"
+            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
+            --create
           keychain add-certificates
           xcode-project use-profiles
       - name: Create ExportOptions
