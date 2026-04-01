@@ -59,8 +59,6 @@ workflows:
           xcode-project use-profiles
       - name: Create ExportOptions
         script: |
-          TEAM_ID=$(grep -m1 "DEVELOPMENT_TEAM = [A-Z0-9]" ios/App/App.xcodeproj/project.pbxproj | grep -o '[A-Z0-9]\{10\}' | head -1)
-          echo "Team ID found: $TEAM_ID"
           cat > ios/App/ExportOptions.plist << EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -69,7 +67,7 @@ workflows:
               <key>method</key>
               <string>app-store-connect</string>
               <key>teamID</key>
-              <string>$TEAM_ID</string>
+              <string>$APPLE_TEAM_ID</string>
               <key>signingStyle</key>
               <string>automatic</string>
           </dict>
