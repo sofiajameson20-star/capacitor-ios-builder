@@ -54,6 +54,24 @@ workflows:
             --create
           keychain add-certificates
           xcode-project use-profiles
+          echo "=== Checking team ID was set ==="
+          grep "DEVELOPMENT_TEAM" ios/App/App.xcodeproj/project.pbxproj | head -3
+      - name: Create ExportOptions
+        script: |
+          TEAM_ID=$(grep -m1 "DEVELOPMENT_TEAM = " ios/App/App.xcodeproj/project.pbxproj | grep -o '[A-Z0-9]\{10\}' | head -1)
+          echo "Team ID: $TEAM_ID"
+          cat > ios/App/ExportOptions.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store</string>
+              <key>teamID</key>
+              <string>$TEAM_ID</string>
+          </dict>
+          </plist>
+          EOF
       - name: Build IPA
         script: |
           cd ios/App
@@ -69,18 +87,6 @@ workflows:
             -archivePath App.xcarchive \
             -exportOptionsPlist ExportOptions.plist \
             -exportPath output
-      - name: Create ExportOptions
-        script: |
-          cat > ios/App/ExportOptions.plist << EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>method</key>
-              <string>app-store</string>
-          </dict>
-          </plist>
-          EOF
     publishing:
       app_store_connect:
         api_key: $APP_STORE_CONNECT_PRIVATE_KEY
