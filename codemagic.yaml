@@ -89,7 +89,11 @@ workflows:
           xcodebuild -exportArchive \
             -archivePath App.xcarchive \
             -exportOptionsPlist ExportOptions.plist \
-            -exportPath output
+            -exportPath output \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath /tmp/api_key.p8 \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
     publishing:
       app_store_connect:
         api_key: $APP_STORE_CONNECT_PRIVATE_KEY
