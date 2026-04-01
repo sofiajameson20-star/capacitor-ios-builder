@@ -82,6 +82,7 @@ workflows:
           [ "$MICROPHONE" = "true" ] && plutil -insert NSMicrophoneUsageDescription -string "This app requires microphone access" $PLIST 2>/dev/null || true
           [ "$GEOLOCATION" = "true" ] && plutil -insert NSLocationWhenInUseUsageDescription -string "This app requires location access" $PLIST 2>/dev/null || true
           [ "$BLUETOOTH" = "true" ] && plutil -insert NSBluetoothAlwaysUsageDescription -string "This app requires Bluetooth access" $PLIST 2>/dev/null || true
+          [ "$BLUETOOTH" = "true" ] && plutil -insert NSBluetoothPeripheralUsageDescription -string "This app requires Bluetooth access" $PLIST 2>/dev/null || true
           [ "$NFC" = "true" ] && plutil -insert NFCReaderUsageDescription -string "This app requires NFC access" $PLIST 2>/dev/null || true
           [ "$PUSH_NOTIFICATIONS" = "true" ] && plutil -insert NSUserNotificationsUsageDescription -string "This app requires notification access" $PLIST 2>/dev/null || true
       - name: Fix scheme for workspace
@@ -105,6 +106,31 @@ workflows:
             --create
           keychain add-certificates
           xcode-project use-profiles
+      - name: Register app capabilities
+        script: |
+          BUNDLE_ID_ID=$(app-store-connect bundle-ids list \
+            --identifier "$BUNDLE_ID" \
+            --platform IOS \
+            --private-key @file:/tmp/api_key.p8 \
+            --key-id "$APP_STORE_CONNECT_KEY_ID" \
+            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
+            --json | python3 -c "import sys,json; data=json.load(sys.stdin); print(data[0]['id'])" 2>/dev/null)
+          echo "Bundle ID resource ID: $BUNDLE_ID_ID"
+          enable_capability() {
+            app-store-connect bundle-ids capabilities create \
+              "$BUNDLE_ID_ID" \
+              --capability-type "$1" \
+              --private-key @file:/tmp/api_key.p8 \
+              --key-id "$APP_STORE_CONNECT_KEY_ID" \
+              --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" 2>/dev/null || true
+          }
+          [ "$PUSH_NOTIFICATIONS" = "true" ] && enable_capability "PUSH_NOTIFICATIONS"
+          [ "$IN_APP_PURCHASE" = "true" ] && enable_capability "IN_APP_PURCHASE"
+          [ "$SIGN_IN_APPLE" = "true" ] && enable_capability "SIGN_IN_WITH_APPLE"
+          [ "$BLUETOOTH" = "true" ] && enable_capability "WIRELESS_ACCESSORY_CONFIGURATION"
+          [ "$BACKGROUND_SYNC" = "true" ] && enable_capability "BACKGROUND_MODES"
+          [ "$NFC" = "true" ] && enable_capability "NFC_TAG_READING"
+          echo "Capabilities registration complete"
       - name: Create ExportOptions
         script: |
           cat > ios/App/ExportOptions.plist << EOF
