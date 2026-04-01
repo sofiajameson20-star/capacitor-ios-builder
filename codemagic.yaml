@@ -23,7 +23,7 @@ workflows:
           [ "$PUSH_NOTIFICATIONS" = "true" ] && PLUGINS="$PLUGINS @capacitor/push-notifications"
           [ "$LOCAL_NOTIFICATIONS" = "true" ] && PLUGINS="$PLUGINS @capacitor/local-notifications"
           [ "$CAMERA" = "true" ] && PLUGINS="$PLUGINS @capacitor/camera"
-          [ "$MICROPHONE" = "true" ] && PLUGINS="$PLUGINS @capacitor/microphone"
+          [ "$MICROPHONE" = "true" ] && PLUGINS="$PLUGINS @mozartec/capacitor-microphone"
           [ "$GEOLOCATION" = "true" ] && PLUGINS="$PLUGINS @capacitor/geolocation"
           [ "$BLUETOOTH" = "true" ] && PLUGINS="$PLUGINS @capacitor-community/bluetooth-le"
           [ "$NFC" = "true" ] && PLUGINS="$PLUGINS @capacitor-community/nfc"
@@ -69,6 +69,15 @@ workflows:
         script: |
           npx cap add ios
           npx cap sync ios
+      - name: Inject iOS permissions
+        script: |
+          PLIST="ios/App/App/Info.plist"
+          [ "$CAMERA" = "true" ] && plutil -insert NSCameraUsageDescription -string "This app requires camera access" $PLIST 2>/dev/null || true
+          [ "$MICROPHONE" = "true" ] && plutil -insert NSMicrophoneUsageDescription -string "This app requires microphone access" $PLIST 2>/dev/null || true
+          [ "$GEOLOCATION" = "true" ] && plutil -insert NSLocationWhenInUseUsageDescription -string "This app requires location access" $PLIST 2>/dev/null || true
+          [ "$BLUETOOTH" = "true" ] && plutil -insert NSBluetoothAlwaysUsageDescription -string "This app requires Bluetooth access" $PLIST 2>/dev/null || true
+          [ "$NFC" = "true" ] && plutil -insert NFCReaderUsageDescription -string "This app requires NFC access" $PLIST 2>/dev/null || true
+          [ "$PUSH_NOTIFICATIONS" = "true" ] && plutil -insert NSUserNotificationsUsageDescription -string "This app requires notification access" $PLIST 2>/dev/null || true
       - name: Fix scheme for workspace
         script: |
           mkdir -p ios/App/App.xcworkspace/xcshareddata/xcschemes
