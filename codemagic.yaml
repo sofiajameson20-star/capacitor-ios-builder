@@ -46,8 +46,12 @@ workflows:
       - name: Set up keychain and code signing
         script: |
           keychain initialize
-          echo "$CERTIFICATE_PRIVATE_KEY" > /tmp/certificate_key.pem
-          echo "$APP_STORE_CONNECT_PRIVATE_KEY" > /tmp/api_key.p8
+          echo "$CERTIFICATE_PRIVATE_KEY_B64" | base64 --decode > /tmp/certificate_key.pem
+          echo "$APP_STORE_CONNECT_PRIVATE_KEY_B64" | base64 --decode > /tmp/api_key.p8
+          echo "=== Certificate key first line ==="
+          head -1 /tmp/certificate_key.pem
+          echo "=== API key first line ==="
+          head -1 /tmp/api_key.p8
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --certificate-key @file:/tmp/certificate_key.pem \
