@@ -16,7 +16,7 @@ workflows:
       - name: Install Capacitor
         script: |
           npm init -y
-          npm install @capacitor/core@5.7.0 @capacitor/ios@5.7.0 @capacitor/cli@5.7.0
+          npm install @capacitor/core @capacitor/ios @capacitor/cli
       - name: Install selected plugins
         script: |
           PLUGINS=""
@@ -46,7 +46,7 @@ workflows:
           [ "$BACKGROUND_SYNC" = "true" ] && PLUGINS="$PLUGINS @capacitor/background-runner"
           if [ -n "$PLUGINS" ]; then
             echo "Installing plugins: $PLUGINS"
-            npm install $PLUGINS
+            npm install $PLUGINS --legacy-peer-deps
           else
             echo "No plugins selected"
           fi
