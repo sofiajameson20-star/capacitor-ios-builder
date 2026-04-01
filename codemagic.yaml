@@ -70,6 +70,7 @@ workflows:
           npx cap add ios
           cd ios/App
           sed -i '' "s/platform :ios, '[0-9.]*'/platform :ios, '16.0'/" Podfile
+          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*/IPHONEOS_DEPLOYMENT_TARGET = 16.0/g' App.xcodeproj/project.pbxproj
           cd ../..
           npx cap sync ios
       - name: Inject iOS permissions
