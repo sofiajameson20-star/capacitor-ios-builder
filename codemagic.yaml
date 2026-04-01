@@ -9,10 +9,7 @@ workflows:
         BUNDLE_ID: $BUNDLE_ID
         VERSION_NAME: $VERSION_NAME
         VERSION_CODE: $VERSION_CODE
-        APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
-        APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_ID
-        APP_STORE_CONNECT_PRIVATE_KEY: $APP_STORE_CONNECT_API_KEY
-        CERTIFICATE_PRIVATE_KEY: $CERTIFICATE_PRIVATE_KEY
+        APPLE_TEAM_ID: $APPLE_TEAM_ID
       xcode: latest
       node: 20
     scripts:
@@ -49,17 +46,21 @@ workflows:
       - name: Set up keychain and code signing
         script: |
           keychain initialize
+          echo "$CERTIFICATE_PRIVATE_KEY" > /tmp/certificate_key.pem
+          echo "$APP_STORE_CONNECT_PRIVATE_KEY" > /tmp/api_key.p8
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
+            --certificate-key @file:/tmp/certificate_key.pem \
+            --private-key @file:/tmp/api_key.p8 \
+            --key-id "$APP_STORE_CONNECT_KEY_ID" \
+            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
             --create
           keychain add-certificates
           xcode-project use-profiles
-          echo "=== Checking team ID was set ==="
-          grep "DEVELOPMENT_TEAM" ios/App/App.xcodeproj/project.pbxproj | head -3
       - name: Create ExportOptions
         script: |
-          TEAM_ID=$(grep -m1 "DEVELOPMENT_TEAM = " ios/App/App.xcodeproj/project.pbxproj | grep -o '[A-Z0-9]\{10\}' | head -1)
-          echo "Team ID: $TEAM_ID"
+          TEAM_ID=$(grep -m1 "DEVELOPMENT_TEAM = [A-Z0-9]" ios/App/App.xcodeproj/project.pbxproj | grep -o '[A-Z0-9]\{10\}' | head -1)
+          echo "Team ID found: $TEAM_ID"
           cat > ios/App/ExportOptions.plist << EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -90,7 +91,7 @@ workflows:
     publishing:
       app_store_connect:
         api_key: $APP_STORE_CONNECT_PRIVATE_KEY
-        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        key_id: $APP_STORE_CONNECT_KEY_ID
         issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: true
         submit_to_app_store: false
