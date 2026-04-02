@@ -81,6 +81,8 @@ workflows:
           [ "$CAMERA" = "true" ] && plutil -insert NSPhotoLibraryAddUsageDescription -string "This app requires photo library access" $PLIST 2>/dev/null || true
           [ "$MICROPHONE" = "true" ] && plutil -insert NSMicrophoneUsageDescription -string "This app requires microphone access" $PLIST 2>/dev/null || true
           [ "$GEOLOCATION" = "true" ] && plutil -insert NSLocationWhenInUseUsageDescription -string "This app requires location access" $PLIST 2>/dev/null || true
+          [ "$GEOLOCATION" = "true" ] && plutil -insert NSLocationAlwaysAndWhenInUseUsageDescription -string "This app requires location access" $PLIST 2>/dev/null || true
+          [ "$GEOLOCATION" = "true" ] && plutil -insert NSLocationAlwaysUsageDescription -string "This app requires location access" $PLIST 2>/dev/null || true
           [ "$BLUETOOTH" = "true" ] && plutil -insert NSBluetoothAlwaysUsageDescription -string "This app requires Bluetooth access" $PLIST 2>/dev/null || true
           [ "$BLUETOOTH" = "true" ] && plutil -insert NSBluetoothPeripheralUsageDescription -string "This app requires Bluetooth access" $PLIST 2>/dev/null || true
           [ "$NFC" = "true" ] && plutil -insert NFCReaderUsageDescription -string "This app requires NFC access" $PLIST 2>/dev/null || true
