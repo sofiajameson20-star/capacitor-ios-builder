@@ -33,7 +33,7 @@ workflows:
           [ "$FILESYSTEM" = "true" ] && PLUGINS="$PLUGINS @capacitor/filesystem"
           [ "$CLIPBOARD" = "true" ] && PLUGINS="$PLUGINS @capacitor/clipboard"
           [ "$NETWORK" = "true" ] && PLUGINS="$PLUGINS @capacitor/network"
-          [ "$BIOMETRICS" = "true" ] && PLUGINS="$PLUGINS @capacitor/biometrics"
+          [ "$BIOMETRICS" = "true" ] && PLUGINS="$PLUGINS @aparajita/capacitor-biometric-auth"
           [ "$GOOGLE_AUTH" = "true" ] && PLUGINS="$PLUGINS @codetrix-studio/capacitor-google-auth"
           [ "$SIGN_IN_APPLE" = "true" ] && PLUGINS="$PLUGINS @capacitor-community/apple-sign-in"
           [ "$IN_APP_REVIEW" = "true" ] && PLUGINS="$PLUGINS @capacitor-community/in-app-review"
@@ -85,6 +85,31 @@ workflows:
           [ "$BLUETOOTH" = "true" ] && plutil -insert NSBluetoothPeripheralUsageDescription -string "This app requires Bluetooth access" $PLIST 2>/dev/null || true
           [ "$NFC" = "true" ] && plutil -insert NFCReaderUsageDescription -string "This app requires NFC access" $PLIST 2>/dev/null || true
           [ "$PUSH_NOTIFICATIONS" = "true" ] && plutil -insert NSUserNotificationsUsageDescription -string "This app requires notification access" $PLIST 2>/dev/null || true
+      - name: Inject app icon
+        script: |
+          if [ -n "$APP_ICON_B64" ]; then
+            echo "Injecting app icon..."
+            echo "$APP_ICON_B64" | base64 --decode > /tmp/app_icon.png
+            ICON_DIR="ios/App/App/Assets.xcassets/AppIcon.appiconset"
+            sips -z 20 20 /tmp/app_icon.png --out "$ICON_DIR/AppIcon-20x20@1x.png" 2>/dev/null || true
+            sips -z 40 40 /tmp/app_icon.png --out "$ICON_DIR/AppIcon-20x20@2x.png" 2>/dev/null || true
+            sips -z 60 60 /tmp/app_icon.png --out "$ICON_DIR/AppIcon-20x20@3x.png" 2>/dev/null || true
+            sips -z 29 29 /tmp/app_icon.png --out "$ICON_DIR/AppIcon-29x29@1x.png" 2>/dev/null || true
+            sips -z 58 58 /tmp/app_icon.png --out "$ICON_DIR/AppIcon-29x29@2x.png" 2>/dev/null || true
+            sips -z 87 87 /tmp/app_icon.png --out "$ICON_DIR/AppIcon-29x29@3x.png" 2>/dev/null || true
+            sips -z 40 40 /tmp/app_icon.png --out "$ICON_DIR/AppIcon-40x40@1x.png" 2>/dev/null || true
+            sips -z 80 80 /tmp/app_icon.png --out "$ICON_DIR/AppIcon-40x40@2x.png" 2>/dev/null || true
+            sips -z 120 120 /tmp/app_icon.png --out "$ICON_DIR/AppIcon-40x40@3x.png" 2>/dev/null || true
+            sips -z 120 120 /tmp/app_icon.png --out "$ICON_DIR/AppIcon-60x60@2x.png" 2>/dev/null || true
+            sips -z 180 180 /tmp/app_icon.png --out "$ICON_DIR/AppIcon-60x60@3x.png" 2>/dev/null || true
+            sips -z 76 76 /tmp/app_icon.png --out "$ICON_DIR/AppIcon-76x76@1x.png" 2>/dev/null || true
+            sips -z 152 152 /tmp/app_icon.png --out "$ICON_DIR/AppIcon-76x76@2x.png" 2>/dev/null || true
+            sips -z 167 167 /tmp/app_icon.png --out "$ICON_DIR/AppIcon-83.5x83.5@2x.png" 2>/dev/null || true
+            sips -z 1024 1024 /tmp/app_icon.png --out "$ICON_DIR/AppIcon-1024x1024@1x.png" 2>/dev/null || true
+            echo "Icon injection complete"
+          else
+            echo "No icon provided, using default"
+          fi
       - name: Fix scheme for workspace
         script: |
           mkdir -p ios/App/App.xcworkspace/xcshareddata/xcschemes
