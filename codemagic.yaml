@@ -10,7 +10,7 @@ workflows:
         VERSION_NAME: $VERSION_NAME
         VERSION_CODE: $VERSION_CODE
         APPLE_TEAM_ID: $APPLE_TEAM_ID
-      xcode: latest
+      xcode: 16.2
       node: 20
     scripts:
       - name: Install Capacitor
