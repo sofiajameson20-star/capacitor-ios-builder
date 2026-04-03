@@ -26,7 +26,7 @@ workflows:
           [ "$MICROPHONE" = "true" ] && PLUGINS="$PLUGINS @mozartec/capacitor-microphone"
           [ "$GEOLOCATION" = "true" ] && PLUGINS="$PLUGINS @capacitor/geolocation"
           [ "$BLUETOOTH" = "true" ] && PLUGINS="$PLUGINS @capacitor-community/bluetooth-le"
-          [ "$NFC" = "true" ] && PLUGINS="$PLUGINS @capawesome-team/capacitor-nfc"
+          [ "$NFC" = "true" ] && PLUGINS="$PLUGINS @capgo/capacitor-nfc"
           [ "$FLASHLIGHT" = "true" ] && PLUGINS="$PLUGINS @capawesome/capacitor-torch"
           [ "$HAPTICS" = "true" ] && PLUGINS="$PLUGINS @capacitor/haptics"
           [ "$SHARE" = "true" ] && PLUGINS="$PLUGINS @capacitor/share"
