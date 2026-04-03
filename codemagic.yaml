@@ -27,7 +27,7 @@ workflows:
           [ "$GEOLOCATION" = "true" ] && PLUGINS="$PLUGINS @capacitor/geolocation"
           [ "$BLUETOOTH" = "true" ] && PLUGINS="$PLUGINS @capacitor-community/bluetooth-le"
           [ "$NFC" = "true" ] && PLUGINS="$PLUGINS @capacitor-community/nfc"
-          [ "$FLASHLIGHT" = "true" ] && PLUGINS="$PLUGINS @capacitor-community/torch"
+          [ "$FLASHLIGHT" = "true" ] && PLUGINS="$PLUGINS @capawesome-team/capacitor-flashlight"
           [ "$HAPTICS" = "true" ] && PLUGINS="$PLUGINS @capacitor/haptics"
           [ "$SHARE" = "true" ] && PLUGINS="$PLUGINS @capacitor/share"
           [ "$FILESYSTEM" = "true" ] && PLUGINS="$PLUGINS @capacitor/filesystem"
