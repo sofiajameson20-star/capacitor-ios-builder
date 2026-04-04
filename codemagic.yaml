@@ -43,7 +43,6 @@ workflows:
           [ "$KEEP_AWAKE" = "true" ] && PLUGINS="$PLUGINS @capacitor-community/keep-awake"
           [ "$KEYBOARD" = "true" ] && PLUGINS="$PLUGINS @capacitor/keyboard"
           [ "$APP_BADGES" = "true" ] && PLUGINS="$PLUGINS @capawesome/capacitor-badge"
-          [ "$BACKGROUND_SYNC" = "true" ] && PLUGINS="$PLUGINS @capacitor/background-runner"
           if [ -n "$PLUGINS" ]; then
             echo "Installing plugins: $PLUGINS"
             npm install $PLUGINS --legacy-peer-deps
@@ -59,7 +58,8 @@ workflows:
             "webDir": "www",
             "server": {
               "url": "$APP_URL",
-              "cleartext": true
+              "cleartext": true,
+              "allowNavigation": ["*"]
             }
           }
           CAPEOF
@@ -144,7 +144,6 @@ workflows:
             [ "$IN_APP_PURCHASE" = "true" ] && enable_capability "IN_APP_PURCHASE"
             [ "$SIGN_IN_APPLE" = "true" ] && enable_capability "SIGN_IN_WITH_APPLE"
             [ "$BLUETOOTH" = "true" ] && enable_capability "WIRELESS_ACCESSORY_CONFIGURATION"
-            [ "$BACKGROUND_SYNC" = "true" ] && enable_capability "BACKGROUND_MODES"
             [ "$NFC" = "true" ] && enable_capability "NFC_TAG_READING"
             echo "Capabilities registration complete"
           fi
