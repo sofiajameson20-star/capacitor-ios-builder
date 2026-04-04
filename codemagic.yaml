@@ -16,7 +16,7 @@ workflows:
       - name: Install Capacitor
         script: |
           npm init -y
-          npm install @capacitor/core @capacitor/ios @capacitor/cli
+          npm install @capacitor/core @capacitor/ios @capacitor/cli @capacitor/browser
       - name: Install selected plugins
         script: |
           PLUGINS=""
