@@ -17,6 +17,7 @@ workflows:
         script: |
           npm init -y
           npm install @capacitor/core @capacitor/ios @capacitor/cli @capacitor/browser
+          npm install @capacitor-firebase/analytics @capacitor-firebase/crashlytics @capacitor-firebase/remote-config --legacy-peer-deps 2>/dev/null || true
       - name: Install selected plugins
         script: |
           PLUGINS=""
@@ -301,6 +302,51 @@ workflows:
           <!-- App shortcuts handled via URL scheme -->
           SHORTCUTEOF
           echo "Deep linking configured"
+      - name: Inject Batch 3 features
+        script: |
+          # Add Firebase Crashlytics and Analytics via CocoaPods
+          cd ios/App
+          cat >> Podfile << 'PODEOF'
+          pod 'Firebase/Crashlytics'
+          pod 'Firebase/Analytics'
+          pod 'Firebase/RemoteConfig'
+          PODEOF
+          pod install --repo-update 2>/dev/null || true
+          cd ../..
+
+          # Add Firebase initialization to AppDelegate
+          cat > "ios/App/App/AppDelegate.swift" << 'SWIFTEOF'
+          import UIKit
+          import Capacitor
+          import FirebaseCore
+          import FirebaseCrashlytics
+          import FirebaseAnalytics
+
+          @UIApplicationMain
+          class AppDelegate: UIResponder, UIApplicationDelegate {
+              var window: UIWindow?
+
+              func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+                  if let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") {
+                      if let options = FirebaseOptions(contentsOfFile: path) {
+                          FirebaseApp.configure(options: options)
+                          Analytics.logEvent("app_open", parameters: nil)
+                      }
+                  }
+                  return true
+              }
+
+              func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+                  return ApplicationDelegateProxy.shared.application(app, open: url, options: options)
+              }
+
+              func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
+                  return ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
+              }
+          }
+          SWIFTEOF
+          echo "Batch 3 Firebase features injected"
+
       - name: Inject iOS permissions
         script: |
           PLIST="ios/App/App/Info.plist"
