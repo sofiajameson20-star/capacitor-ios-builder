@@ -347,6 +347,77 @@ workflows:
           SWIFTEOF
           echo "Batch 3 Firebase features injected"
 
+      - name: Inject Batch 4 hardware features
+        script: |
+          cat > "ios/App/App/HardwareBridge.swift" << 'SWIFTEOF'
+          import Foundation
+          import WebKit
+          import AVFoundation
+          import Speech
+          import Vision
+
+          @objc class HardwareBridgeHandler: NSObject, WKScriptMessageHandler {
+              weak var viewController: UIViewController?
+
+              public func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+                  guard let body = message.body as? [String: Any],
+                        let action = body["action"] as? String else { return }
+                  DispatchQueue.main.async {
+                      switch action {
+                      case "startVoiceRecognition":
+                          self.startVoiceRecognition()
+                      case "detectFaces":
+                          if let imageUrl = body["url"] as? String {
+                              self.detectFaces(imageUrl: imageUrl)
+                          }
+                      default:
+                          break
+                      }
+                  }
+              }
+
+              func startVoiceRecognition() {
+                  SFSpeechRecognizer.requestAuthorization { status in
+                      guard status == .authorized else { return }
+                      let recognizer = SFSpeechRecognizer()
+                      let request = SFSpeechAudioBufferRecognitionRequest()
+                      let audioEngine = AVAudioEngine()
+                      let inputNode = audioEngine.inputNode
+                      inputNode.installTap(onBus: 0, bufferSize: 1024, format: inputNode.outputFormat(forBus: 0)) { buffer, _ in
+                          request.append(buffer)
+                      }
+                      try? audioEngine.start()
+                      recognizer?.recognitionTask(with: request) { result, _ in
+                          if let text = result?.bestTranscription.formattedString {
+                              DispatchQueue.main.async {
+                                  // Send result back to WebView
+                              }
+                          }
+                      }
+                  }
+              }
+
+              func detectFaces(imageUrl: String) {
+                  guard let url = URL(string: imageUrl),
+                        let data = try? Data(contentsOf: url),
+                        let image = UIImage(data: data),
+                        let cgImage = image.cgImage else { return }
+                  let request = VNDetectFaceRectanglesRequest { request, _ in
+                      let faces = request.results?.count ?? 0
+                      // Send face count back to WebView
+                  }
+                  try? VNImageRequestHandler(cgImage: cgImage).perform([request])
+              }
+          }
+          SWIFTEOF
+
+          # Add permissions for hardware features
+          PLIST="ios/App/App/Info.plist"
+          plutil -insert NSSpeechRecognitionUsageDescription -string "This app uses voice recognition" $PLIST 2>/dev/null || true
+          plutil -insert NSHealthShareUsageDescription -string "This app reads health data" $PLIST 2>/dev/null || true
+          plutil -insert NSHealthUpdateUsageDescription -string "This app writes health data" $PLIST 2>/dev/null || true
+          echo "Batch 4 hardware features injected"
+
       - name: Inject iOS permissions
         script: |
           PLIST="ios/App/App/Info.plist"
