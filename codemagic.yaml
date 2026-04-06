@@ -73,25 +73,32 @@ workflows:
           sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*/IPHONEOS_DEPLOYMENT_TARGET = 16.0/g' App.xcodeproj/project.pbxproj
           cd ../..
           npx cap sync ios
-      - name: Inject Batch 1 features
+      - name: Inject native features
         script: |
           cat > "ios/App/App/ViewController.swift" << 'VCEOF'
           import UIKit
           import Capacitor
           import WebKit
+          import LocalAuthentication
+          import AVFoundation
 
           class ViewController: CAPBridgeViewController {
               var refreshControl: UIRefreshControl!
               var progressView: UIProgressView!
               var observation: NSKeyValueObservation?
+              var isAuthenticated = false
 
               override func viewDidLoad() {
                   super.viewDidLoad()
                   setupPullToRefresh()
                   setupProgressBar()
                   setupWebViewDelegate()
+                  setupScreenshotPrevention()
+                  setupQRScannerBridge()
+                  authenticateIfNeeded()
               }
 
+              // MARK: - Batch 1: Pull to refresh
               func setupPullToRefresh() {
                   refreshControl = UIRefreshControl()
                   refreshControl.addTarget(self, action: #selector(refreshWebView), for: .valueChanged)
@@ -106,6 +113,7 @@ workflows:
                   }
               }
 
+              // MARK: - Batch 1: Progress bar
               func setupProgressBar() {
                   progressView = UIProgressView(progressViewStyle: .bar)
                   progressView.translatesAutoresizingMaskIntoConstraints = false
@@ -131,11 +139,57 @@ workflows:
                   webView?.navigationDelegate = self
               }
 
+              // MARK: - Batch 2: Screenshot prevention
+              func setupScreenshotPrevention() {
+                  let field = UITextField()
+                  field.isSecureTextEntry = true
+                  field.translatesAutoresizingMaskIntoConstraints = false
+                  view.addSubview(field)
+                  view.layer.superlayer?.addSublayer(field.layer)
+                  field.layer.sublayers?.first?.addSublayer(view.layer)
+              }
+
+              // MARK: - Batch 2: Biometric app lock
+              func authenticateIfNeeded() {
+                  let context = LAContext()
+                  var error: NSError?
+                  if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
+                      context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics,
+                          localizedReason: "Authenticate to access the app") { success, _ in
+                          DispatchQueue.main.async {
+                              self.isAuthenticated = success
+                              if !success {
+                                  self.webView?.isHidden = true
+                              } else {
+                                  self.webView?.isHidden = false
+                              }
+                          }
+                      }
+                  } else {
+                      isAuthenticated = true
+                  }
+              }
+
+              // MARK: - Batch 2: QR Scanner bridge
+              func setupQRScannerBridge() {
+                  let script = WKUserScript(source: """
+                      window.NativeQRScanner = {
+                          scan: function(callback) {
+                              window.webkit.messageHandlers.qrScanner.postMessage({action: 'scan'});
+                              window.__qrCallback = callback;
+                          }
+                      };
+                  """, injectionTime: .atDocumentStart, forMainFrameOnly: false)
+                  webView?.configuration.userContentController.addUserScript(script)
+                  webView?.configuration.userContentController.add(self, name: "qrScanner")
+              }
+
               deinit {
                   observation?.invalidate()
               }
           }
 
+          // MARK: - WKNavigationDelegate
           extension ViewController: WKNavigationDelegate {
               func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
                   let errorHTML = """
@@ -150,8 +204,103 @@ workflows:
                   webView.loadHTMLString(errorHTML, baseURL: nil)
               }
           }
+
+          // MARK: - WKScriptMessageHandler for QR Scanner
+          extension ViewController: WKScriptMessageHandler {
+              func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+                  if message.name == "qrScanner" {
+                      presentQRScanner()
+                  }
+              }
+
+              func presentQRScanner() {
+                  let scanner = QRScannerViewController()
+                  scanner.delegate = self
+                  present(scanner, animated: true)
+              }
+          }
+
+          // MARK: - QR Scanner delegate
+          extension ViewController: QRScannerDelegate {
+              func didScanCode(_ code: String) {
+                  webView?.evaluateJavaScript("if(window.__qrCallback) window.__qrCallback('\(code)');", completionHandler: nil)
+              }
+          }
+
+          // MARK: - QR Scanner ViewController
+          protocol QRScannerDelegate: AnyObject {
+              func didScanCode(_ code: String)
+          }
+
+          class QRScannerViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
+              weak var delegate: QRScannerDelegate?
+              var captureSession: AVCaptureSession!
+              var previewLayer: AVCaptureVideoPreviewLayer!
+
+              override func viewDidLoad() {
+                  super.viewDidLoad()
+                  view.backgroundColor = .black
+                  setupCamera()
+                  addCloseButton()
+              }
+
+              func addCloseButton() {
+                  let button = UIButton(type: .system)
+                  button.setTitle("Close", for: .normal)
+                  button.setTitleColor(.white, for: .normal)
+                  button.translatesAutoresizingMaskIntoConstraints = false
+                  view.addSubview(button)
+                  NSLayoutConstraint.activate([
+                      button.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
+                      button.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16)
+                  ])
+                  button.addTarget(self, action: #selector(closeScanner), for: .touchUpInside)
+              }
+
+              @objc func closeScanner() {
+                  dismiss(animated: true)
+              }
+
+              func setupCamera() {
+                  captureSession = AVCaptureSession()
+                  guard let device = AVCaptureDevice.default(for: .video),
+                        let input = try? AVCaptureDeviceInput(device: device) else { return }
+                  captureSession.addInput(input)
+                  let output = AVCaptureMetadataOutput()
+                  captureSession.addOutput(output)
+                  output.setMetadataObjectsDelegate(self, queue: .main)
+                  output.metadataObjectTypes = [.qr, .ean8, .ean13, .code128, .code39]
+                  previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
+                  previewLayer.frame = view.layer.bounds
+                  previewLayer.videoGravity = .resizeAspectFill
+                  view.layer.addSublayer(previewLayer)
+                  DispatchQueue.global(qos: .background).async {
+                      self.captureSession.startRunning()
+                  }
+              }
+
+              func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
+                  if let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
+                     let code = object.stringValue {
+                      captureSession.stopRunning()
+                      dismiss(animated: true) {
+                          self.delegate?.didScanCode(code)
+                      }
+                  }
+              }
+          }
           VCEOF
-          echo "Batch 1 features injected"
+          echo "Native features injected"
+
+          # Add deep linking to Info.plist
+          PLIST="ios/App/App/Info.plist"
+          plutil -insert CFBundleURLTypes -json '[{"CFBundleURLSchemes":["'"$BUNDLE_ID"'"]}]' $PLIST 2>/dev/null || true
+
+          # Add app shortcuts
+          cat >> ios/App/App/Info.plist << 'SHORTCUTEOF'
+          <!-- App shortcuts handled via URL scheme -->
+          SHORTCUTEOF
+          echo "Deep linking configured"
       - name: Inject iOS permissions
         script: |
           PLIST="ios/App/App/Info.plist"
@@ -166,6 +315,8 @@ workflows:
           [ "$BLUETOOTH" = "true" ] && plutil -insert NSBluetoothPeripheralUsageDescription -string "This app requires Bluetooth access" $PLIST 2>/dev/null || true
           [ "$NFC" = "true" ] && plutil -insert NFCReaderUsageDescription -string "This app requires NFC access" $PLIST 2>/dev/null || true
           [ "$PUSH_NOTIFICATIONS" = "true" ] && plutil -insert NSUserNotificationsUsageDescription -string "This app requires notification access" $PLIST 2>/dev/null || true
+          # Always add camera permission for QR scanner
+          plutil -insert NSCameraUsageDescription -string "This app requires camera access for QR scanning" $PLIST 2>/dev/null || true
       - name: Inject print bridge
         script: |
           cat > ios/App/App/PrintBridge.swift << 'SWIFTEOF'
