@@ -73,6 +73,85 @@ workflows:
           sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*/IPHONEOS_DEPLOYMENT_TARGET = 16.0/g' App.xcodeproj/project.pbxproj
           cd ../..
           npx cap sync ios
+      - name: Inject Batch 1 features
+        script: |
+          cat > "ios/App/App/ViewController.swift" << 'VCEOF'
+          import UIKit
+          import Capacitor
+          import WebKit
+
+          class ViewController: CAPBridgeViewController {
+              var refreshControl: UIRefreshControl!
+              var progressView: UIProgressView!
+              var observation: NSKeyValueObservation?
+
+              override func viewDidLoad() {
+                  super.viewDidLoad()
+                  setupPullToRefresh()
+                  setupProgressBar()
+                  setupWebViewDelegate()
+              }
+
+              func setupPullToRefresh() {
+                  refreshControl = UIRefreshControl()
+                  refreshControl.addTarget(self, action: #selector(refreshWebView), for: .valueChanged)
+                  webView?.scrollView.addSubview(refreshControl)
+                  webView?.scrollView.bounces = true
+              }
+
+              @objc func refreshWebView() {
+                  webView?.reload()
+                  DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                      self.refreshControl.endRefreshing()
+                  }
+              }
+
+              func setupProgressBar() {
+                  progressView = UIProgressView(progressViewStyle: .bar)
+                  progressView.translatesAutoresizingMaskIntoConstraints = false
+                  progressView.tintColor = .black
+                  progressView.trackTintColor = .clear
+                  view.addSubview(progressView)
+                  NSLayoutConstraint.activate([
+                      progressView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+                      progressView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                      progressView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                      progressView.heightAnchor.constraint(equalToConstant: 3)
+                  ])
+                  observation = webView?.observe(\.estimatedProgress, options: [.new]) { [weak self] _, change in
+                      DispatchQueue.main.async {
+                          let progress = Float(change.newValue ?? 0)
+                          self?.progressView.setProgress(progress, animated: true)
+                          self?.progressView.isHidden = progress >= 1.0
+                      }
+                  }
+              }
+
+              func setupWebViewDelegate() {
+                  webView?.navigationDelegate = self
+              }
+
+              deinit {
+                  observation?.invalidate()
+              }
+          }
+
+          extension ViewController: WKNavigationDelegate {
+              func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+                  let errorHTML = """
+                  <html>
+                  <body style="font-family:sans-serif;text-align:center;padding:50px;background:#f5f5f5">
+                  <h2 style="color:#333">No Internet Connection</h2>
+                  <p style="color:#666">Please check your connection and try again.</p>
+                  <button onclick="window.location.reload()" style="padding:12px 24px;background:#000;color:#fff;border:none;border-radius:8px;font-size:16px">Try Again</button>
+                  </body>
+                  </html>
+                  """
+                  webView.loadHTMLString(errorHTML, baseURL: nil)
+              }
+          }
+          VCEOF
+          echo "Batch 1 features injected"
       - name: Inject iOS permissions
         script: |
           PLIST="ios/App/App/Info.plist"
@@ -87,6 +166,65 @@ workflows:
           [ "$BLUETOOTH" = "true" ] && plutil -insert NSBluetoothPeripheralUsageDescription -string "This app requires Bluetooth access" $PLIST 2>/dev/null || true
           [ "$NFC" = "true" ] && plutil -insert NFCReaderUsageDescription -string "This app requires NFC access" $PLIST 2>/dev/null || true
           [ "$PUSH_NOTIFICATIONS" = "true" ] && plutil -insert NSUserNotificationsUsageDescription -string "This app requires notification access" $PLIST 2>/dev/null || true
+      - name: Inject print bridge
+        script: |
+          cat > ios/App/App/PrintBridge.swift << 'SWIFTEOF'
+          import Foundation
+          import WebKit
+          import UIKit
+
+          @objc class PrintBridgeHandler: NSObject, WKScriptMessageHandler {
+              weak var webView: WKWebView?
+
+              public func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+                  guard let body = message.body as? [String: Any] else { return }
+                  let action = body["action"] as? String ?? ""
+                  DispatchQueue.main.async {
+                      switch action {
+                      case "printCurrentPage":
+                          self.printWebView()
+                      case "printURL":
+                          if let url = body["url"] as? String { self.printFromURL(url) }
+                      case "printHTML":
+                          if let html = body["html"] as? String { self.printFromHTML(html) }
+                      default:
+                          break
+                      }
+                  }
+              }
+
+              func printWebView() {
+                  guard let webView = webView else { return }
+                  let printController = UIPrintInteractionController.shared
+                  let printInfo = UIPrintInfo.printInfo()
+                  printInfo.outputType = .general
+                  printController.printInfo = printInfo
+                  printController.printFormatter = webView.viewPrintFormatter()
+                  printController.present(animated: true, completionHandler: nil)
+              }
+
+              func printFromURL(_ urlString: String) {
+                  guard let url = URL(string: urlString) else { return }
+                  let printController = UIPrintInteractionController.shared
+                  let printInfo = UIPrintInfo.printInfo()
+                  printInfo.outputType = .general
+                  printController.printInfo = printInfo
+                  printController.printingItem = url
+                  printController.present(animated: true, completionHandler: nil)
+              }
+
+              func printFromHTML(_ html: String) {
+                  let printController = UIPrintInteractionController.shared
+                  let printInfo = UIPrintInfo.printInfo()
+                  printInfo.outputType = .general
+                  printController.printInfo = printInfo
+                  let formatter = UIMarkupTextPrintFormatter(markupText: html)
+                  printController.printFormatter = formatter
+                  printController.present(animated: true, completionHandler: nil)
+              }
+          }
+          SWIFTEOF
+          echo "iOS print bridge created"
       - name: Inject app icon
         script: |
           if [ -n "$APP_ICON_B64" ]; then
