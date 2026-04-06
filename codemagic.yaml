@@ -10,6 +10,8 @@ workflows:
         VERSION_NAME: $VERSION_NAME
         VERSION_CODE: $VERSION_CODE
         APPLE_TEAM_ID: $APPLE_TEAM_ID
+        ADMOB: $ADMOB
+        ADMOB_APP_ID: $ADMOB_APP_ID
       xcode: 26.2
       node: 20
     scripts:
@@ -346,6 +348,57 @@ workflows:
           }
           SWIFTEOF
           echo "Batch 3 Firebase features injected"
+
+      - name: Inject Batch 5 monetization
+        script: |
+          # Add Google AdMob via CocoaPods if enabled
+          if [ "$ADMOB" = "true" ] && [ -n "$ADMOB_APP_ID" ]; then
+            cd ios/App
+            echo "pod 'Google-Mobile-Ads-SDK'" >> Podfile
+            pod install --repo-update 2>/dev/null || true
+            cd ../..
+            PLIST="ios/App/App/Info.plist"
+            plutil -insert GADApplicationIdentifier -string "$ADMOB_APP_ID" $PLIST 2>/dev/null || true
+            plutil -insert SKAdNetworkItems -json '[{"SKAdNetworkIdentifier":"cstr6suwn9.skadnetwork"}]' $PLIST 2>/dev/null || true
+            echo "AdMob configured"
+          fi
+
+          # Receipt validation bridge
+          cat > "ios/App/App/ReceiptBridge.swift" << 'SWIFTEOF'
+          import Foundation
+          import WebKit
+          import StoreKit
+
+          @objc class ReceiptBridgeHandler: NSObject, WKScriptMessageHandler {
+              public func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+                  guard let body = message.body as? [String: Any],
+                        let action = body["action"] as? String else { return }
+                  switch action {
+                  case "validateReceipt":
+                      self.validateReceipt()
+                  case "requestReview":
+                      DispatchQueue.main.async {
+                          if #available(iOS 14.0, *) {
+                              if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                                  SKStoreReviewController.requestReview(in: scene)
+                              }
+                          }
+                      }
+                  default:
+                      break
+                  }
+              }
+
+              func validateReceipt() {
+                  guard let receiptURL = Bundle.main.appStoreReceiptURL,
+                        let receiptData = try? Data(contentsOf: receiptURL) else { return }
+                  let receiptString = receiptData.base64EncodedString()
+                  // Send receipt to your server for validation
+                  print("Receipt: \(receiptString.prefix(50))...")
+              }
+          }
+          SWIFTEOF
+          echo "Batch 5 monetization features injected"
 
       - name: Inject Batch 4 hardware features
         script: |
